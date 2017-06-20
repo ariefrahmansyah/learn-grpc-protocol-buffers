@@ -1,4 +1,4 @@
-Learn gRPC in Go
+Learn gRPC and Protocol Buffers in Go
 21 Jun 2017
 Tags: go, golang, grpc, protocol buffers
 
@@ -46,7 +46,7 @@ ariefrahmansyah@hotmail.com
 
 - Once you've defined your messages, you run the protocol buffer compiler for your application's language on your `.proto` file to generate data access classes.
 
-* gRPC Benefits
+* gRPC and Protocol Buffers Benefits
 - At the end of presentation 😜
 
 * Let's Get Started
@@ -220,7 +220,7 @@ ariefrahmansyah@hotmail.com
                 r, _ := c.MakePayment(context.Background(), request)
         }
 
-* gRPC Benefits
+* gRPC and Protocol Buffers Benefits
 - Good for low latency, highly scalable, distributed systems.
 - Built on top of HTTP/2, which allows for client-side and/or server-side streaming.
 - More reusable source codes. From API to SDK.
