@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package gateway;
+
+message PaymentRequest {
+        int64 payment_id = 1;
+        string merchant = 2;
+        string merchant_payment_id = 3;
+        double amount = 4;
+        double fee = 5;
+
+        message User {
+                int64 id = 1;
+                string name = 2;
+                string email = 3;
+        }
+
+        User user = 6;
+
+        message Item {
+                string name = 1;
+                double price = 2;
+                int64 quantity = 3;
+        }
+
+        repeated Item item = 7;
+}
+
+message PaymentResponse {
+        int32 status = 1;
+        string message = 2;
+}
+
+service Gateway {
+        rpc MakePayment (PaymentRequest) returns (PaymentResponse) {}
+}

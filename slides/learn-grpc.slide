@@ -1,0 +1,231 @@
+Learn gRPC in Go
+21 Jun 2017
+Tags: go, golang, grpc, protocol buffers
+
+Arief Rahmansyah
+Software Engineer
+ariefrahmansyah@hotmail.com
+
+* Introduction
+
+* gRPC
+- A high performance, open-source universal RPC (Remote Procedure Call) framework.
+
+.image img/landing-2.svg _ 480
+
+- A client can directly call methods on a server on a different machine as if it was a local object.
+- Making it easier to create distributed applications and services.
+
+# - gRPC is based around the idea of defining a service, specifying the methods that can be called remotely with their parameters and return types.
+# - On the server side, the server implements this interface and runs a gRPC server to handle client calls.
+# - On the client side, the client has a stub (referred to as just a client in some languages) that provides the same methods as the server.
+# - gRPC clients and servers can run and talk to each other in a variety of environments.
+
+# * RPC Life Cycle
+# - Unary RPC
+# - Server streaming RPC
+# - Client streaming RPC
+# - Bidirectional streaming RPC
+# - Deadlines/Timeouts
+# - RPC termination
+# - Cancelling RPCs
+# - Metadata
+# - Channels
+
+* Protocol Buffers
+- Protocol buffers are a flexible, efficient, automated mechanism for serializing structured data.
+- Think XML, but smaller, faster, and simpler.
+- You specify how you want the information you're serializing to be structured by defining protocol buffer message types in `.proto` files.
+        message PaymentRequest {
+                int64 payment_id = 1;
+                string merchant = 2;
+                string merchant_payment_id = 3;
+                double amount = 4;
+                double fee = 5;
+        }
+
+- Once you've defined your messages, you run the protocol buffer compiler for your application's language on your `.proto` file to generate data access classes.
+
+* gRPC Benefits
+- At the end of presentation 😜
+
+* Let's Get Started
+
+* Requirements
+- Go 1.5 or above
+- Install gRPC
+        go get google.golang.org/grpc
+- Install Protocol Buffers v3
+        https://github.com/google/protobuf/releases
+        Download pre-compiled binaries for your platform (protoc-<version>-<platform>.zip)
+        Unzip the file and include it to the path
+- Install protoc plugin for Go
+        go get -u github.com/golang/protobuf/protoc-gen-go
+
+* Defining .proto File
+        // payment.proto
+        package gateway;
+
+        message PaymentRequest {
+                int64 payment_id = 1;
+                string merchant = 2;
+                string merchant_payment_id = 3;
+                double amount = 4;
+                double fee = 5;
+
+                message User {
+                        int64 id = 1
+                        string name = 2;
+                        string email = 2;
+                }
+                User user = 6;
+
+                message Item {
+                        string name = 1;
+                        double price = 2
+                        int64 quantity = 3;
+                }
+                repeated Item item = 7;
+        }
+
+* Generate Data Access Class
+        protoc $SRC_DIR/addressbook.proto --go_out=$DST_DIR 
+
+- In this case, we write:
+        protoc payment.proto --go_out=.
+
+- This generates `payment.pb.go` file
+        type PaymentRequest struct {
+                PaymentId         int64           `protobuf:"varint,1,opt,name=payment_id,json=paymentId" json:"payment_id,omitempty"`
+                Merchant          string          `protobuf:"bytes,2,opt,name=merchant" json:"merchant,omitempty"`
+                MerchantPaymentId string          `protobuf:"bytes,3,opt,name=merchant_payment_id,json=merchantPaymentId" json:"merchant_payment_id,omitempty"`
+                Amount            float64         `protobuf:"fixed64,4,opt,name=amount" json:"amount,omitempty"`
+                Fee               float64         `protobuf:"fixed64,5,opt,name=fee" json:"fee,omitempty"`
+                User              *Payment_User   `protobuf:"bytes,6,opt,name=user" json:"user,omitempty"`
+                Item              []*Payment_Item `protobuf:"bytes,7,rep,name=item" json:"item,omitempty"`
+        }
+
+- This also provide simple accessors for each field (setter & getter)) as well as methods to serialize/parse the whole structure to/from raw bytes.
+
+* Marshal Protocol Buffer
+        package main
+
+        import (
+                "log"
+
+                pb "github.com/ariefrahmansyah/learn-grpc/payment"
+                "github.com/golang/protobuf/proto"
+        )
+
+        func main() {
+                payment := &pb.PaymentRequest{
+                        PaymentId:         1,
+                        Merchant:          "tokopedia",
+                        MerchantPaymentId: "TKP1",
+                        Amount:            float64(100000),
+                }
+
+                data, err := proto.Marshal(payment)
+                if err != nil {
+                        log.Fatalln("Failed to encode payment data:", err)
+                }
+
+                log.Println(out)
+        }
+
+* Unmarshal Protocol Buffer
+        ...
+
+        payment2 := &pb.PaymentRequest{}
+
+        if err := proto.Unmarshal(data, payment2); err != nil {
+                log.Fatalln("Failed to decode payment data:", err)
+        }
+
+        log.Println(payment2)
+
+        ...
+
+* Send Protocol Buffer as HTTP Post Raw Body
+        ...
+
+        if _, err := http.Post("http://httpbin.org/post", "", bytes.NewBuffer(data)); err != nil {
+                log.Fatalln("Failed to send payment data:", err)
+        }
+
+        ...
+
+* Start Implementing gRPC
+
+* Use RPC Method
+- Let's add these lines to our `payment.proto`.
+        message PaymentResponse {
+                int32 status = 1;
+                string message = 2;
+        }
+
+        service Gateway {
+                rpc MakePayment (PaymentRequest) returns (PaymentResponse) {}
+        }
+
+
+- This time, we generate data access file using this command:
+        protoc --go_out=plugins=grpc:. *.proto
+
+* Server App - Payment Gateway
+        // server is used to implement gateway.MakePayment.
+        type server struct{}
+
+        // MakePayment implements gateway.MakePayment
+        func (s *server) MakePayment(ctx context.Context, in *pb.PaymentRequest) (*pb.PaymentResponse, error) {
+                return &pb.PaymentResponse{Status: 200, Message: "Payment Success"}, nil
+        }
+
+        func main() {
+                lis, _ := net.Listen("tcp", port)
+
+                s := grpc.NewServer()
+                pb.RegisterGatewayServer(s, &server{})
+
+                // Register reflection service on gRPC server.
+                reflection.Register(s)
+
+                // Serve
+                _ = s.Serve(lis)
+        }
+
+
+* Client App - Merchant
+        func main() {
+                // Set up a connection to the server.
+                conn, _ := grpc.Dial(address, grpc.WithInsecure())
+                defer conn.Close()
+
+                c := pb.NewGatewayClient(conn)
+
+                // Prepare the request
+                request := &pb.PaymentRequest{
+                        PaymentId:         1,
+                        Merchant:          "tokopedia",
+                        MerchantPaymentId: "TKP1",
+                        Amount:            float64(100000),
+                        User: &pb.PaymentRequest_User{
+                                Id:    1,
+                                Name:  "Arief",
+                                Email: "ariefrahmansyah@hotmail.com",
+                        },
+                }
+
+                // Make payment to the payment gateway and print out its response.
+                r, _ := c.MakePayment(context.Background(), request)
+        }
+
+* gRPC Benefits
+- Good for low latency, highly scalable, distributed systems.
+- Built on top of HTTP/2, which allows for client-side and/or server-side streaming.
+- More reusable source codes. From API to SDK.
+- Protocol buffers is very powerful. Smaller, faster, and simpler.
+
+* Reference
+.link http://www.grpc.io/ http://www.grpc.io/
+.link https://developers.google.com/protocol-buffers/ https://developers.google.com/protocol-buffers/
