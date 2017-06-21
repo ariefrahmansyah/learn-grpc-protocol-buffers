@@ -20,6 +20,7 @@ type server struct{}
 
 // MakePayment implements gateway.MakePayment
 func (s *server) MakePayment(ctx context.Context, in *pb.PaymentRequest) (*pb.PaymentResponse, error) {
+	log.Println("Receive request:", in)
 	return &pb.PaymentResponse{Status: 200, Message: "Payment Success"}, nil
 }
 
